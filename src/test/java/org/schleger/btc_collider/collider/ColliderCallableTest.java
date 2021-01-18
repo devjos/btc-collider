@@ -32,7 +32,7 @@ public class ColliderCallableTest {
 
     @Test
     public void puzzleTransactions() throws Exception {
-        FileAddressesProvider p = new FileAddressesProvider(Path.of("addresses", "address_puzzle.txt.gz"));
+        FileAddressesProvider p = new FileAddressesProvider(Path.of("addresses", "puzzle_3_to_7.txt.gz"));
         TCustomHashSet<byte[]> addresses = p.provideAddresses();
 
         ColliderCallable colliderCallable = new ColliderCallable(addresses, BigInteger.ONE, BigInteger.valueOf(100));
@@ -45,5 +45,24 @@ public class ColliderCallableTest {
         for (int i=0; i<collisions.size(); i++){
             Assertions.assertEquals(expected[i], collisions.get(i).intValue());
         }
+    }
+
+    @Test
+    public void puzzleTransaction54() throws Exception {
+        //assert that puzzle transaction 54 is found in file with three puzzle transactions
+        FileAddressesProvider p = new FileAddressesProvider(Path.of("addresses", "puzzle_52_to_54.txt.gz"));
+        TCustomHashSet<byte[]> addresses = p.provideAddresses();
+
+        BigInteger start = new BigInteger("efae164cb9e1c", 16);
+        BigInteger end = new BigInteger("efae164cb9e5c", 16);
+
+        ColliderCallable colliderCallable = new ColliderCallable(addresses, start, end);
+        ColliderResult result = colliderCallable.call();
+
+        List<BigInteger> collisions = result.getCollisions();
+        Assertions.assertEquals(1, collisions.size());
+
+        Assertions.assertEquals("efae164cb9e3c", collisions.get(0).toString(16));
+
     }
 }
