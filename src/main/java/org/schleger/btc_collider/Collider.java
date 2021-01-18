@@ -1,0 +1,154 @@
+package org.schleger.btc_collider;
+
+import gnu.trove.set.hash.TCustomHashSet;
+import org.apache.commons.cli.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.schleger.btc_collider.addresses.AddressesProvider;
+import org.schleger.btc_collider.addresses.FileAddressesProvider;
+import org.schleger.btc_collider.collider.ColliderCallable;
+import org.schleger.btc_collider.collider.ColliderResult;
+import org.schleger.btc_collider.collision.CollisionListener;
+import org.schleger.btc_collider.collision.FileCollisionListener;
+import org.schleger.btc_collider.searchspace.FileSearchSpaceProvider;
+import org.schleger.btc_collider.searchspace.SearchSpace;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.Security;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
+public class Collider {
+
+    private static final Logger LOG = LogManager.getLogger();
+    private static final Path ADDRESSES_PATH = Path.of("addresses", "Bitcoin_addresses_January_12_2021.txt.gz");
+    private static final Path SEARCH_SPACE_PATH = Path.of("searchspace", "space.txt");
+
+    private final int numThreads;
+    private final int runtimeMinutes;
+
+    public Collider(int numThreads, int runtimeMinutes){
+        this.numThreads = numThreads;
+        this.runtimeMinutes = runtimeMinutes;
+    }
+
+    public void run() throws IOException{
+        LOG.info("Read " + ADDRESSES_PATH);
+        AddressesProvider f = new FileAddressesProvider(ADDRESSES_PATH);
+        TCustomHashSet<byte[]> addresses = f.provideAddresses();
+        LOG.info("Read DONE");
+
+        List<CollisionListener> collisionListeners = new ArrayList<>();
+        collisionListeners.add(new FileCollisionListener("collisions"));
+
+        LOG.info("Start collider on {} threads", numThreads);
+        ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
+
+        FileSearchSpaceProvider fsp = new FileSearchSpaceProvider(SEARCH_SPACE_PATH);
+        ArrayList<Future<ColliderResult>> tasks = new ArrayList<>(numThreads);
+
+        long startSec = System.currentTimeMillis() / 1000;
+        long currentSec = startSec;
+
+        boolean keepRunning = true;
+
+        while(keepRunning || !tasks.isEmpty()){
+
+            keepRunning = currentSec - startSec <= runtimeMinutes * 60;
+            if (keepRunning){
+                while (tasks.size() < numThreads * 2 ){
+                    //add new
+                    SearchSpace searchSpace = fsp.nextSearchSpace();
+                    ColliderCallable c = new ColliderCallable(addresses, searchSpace);
+                    Future<ColliderResult> task = executorService.submit(c);
+                    tasks.add(task);
+                    LOG.debug("New task added: " + searchSpace);
+                }
+            } else {
+                LOG.info("Shutdown soon. Remaining tasks: {}", tasks.size());
+            }
+
+            try {
+                Thread.sleep(20_000);
+            } catch (InterruptedException e) {
+                //silently ignore
+                LOG.trace("Ignore", e);
+            }
+
+            Iterator<Future<ColliderResult>> iterator = tasks.iterator();
+            while (iterator.hasNext()){
+                Future<ColliderResult> task = iterator.next();
+                if (!task.isDone()) continue;
+
+                iterator.remove();
+
+                ColliderResult result = null;
+                try {
+                    result = task.get();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+                if (result != null){
+                    result.getCollisions().forEach( key -> {
+                        String keyStr = key.toString(16);
+                        LOG.info("Found key: " + keyStr);
+                        collisionListeners.forEach( c -> c.collisionEvent(key));
+                    });
+                    fsp.done(result.getSearchSpace());
+                }
+
+            }
+
+            currentSec = System.currentTimeMillis() / 1000;
+        }
+
+        LOG.info("Shutdown. Remaining tasks: {}", tasks.size());
+        executorService.shutdown();
+
+        System.exit(0);
+    }
+
+    public static void main(String[] args) throws Exception {
+        Security.addProvider(new BouncyCastleProvider());
+
+
+        Options options = new Options();
+
+        Option time = new Option("t", "time", true, "runtime in minutes");
+        time.setRequired(true);
+        options.addOption(time);
+
+        Option threadCount = new Option("n", "threads", true, "thread count");
+        threadCount.setRequired(true);
+        options.addOption(threadCount);
+
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd = null;
+
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            LOG.error("", e);
+            formatter.printHelp("Collider", options);
+
+            System.exit(1);
+        }
+
+        int runtimeMinutes = Integer.parseInt(cmd.getOptionValue("t"));
+        int numThreads = Integer.parseInt(cmd.getOptionValue("n"));
+
+        Collider c = new Collider(numThreads, runtimeMinutes);
+        c.run();
+    }
+
+
+}
