@@ -20,12 +20,15 @@ public class FileCollisionListener implements CollisionListener {
 
     @Override
     public void collisionEvent(BigInteger key) {
-        count++;
-        String keyStr = key.toString(16);
-        String filename = count + ".txt";
-        Path p = Path.of(dir, filename);
+        Path p;
+        do{
+            count++;
+            String filename = count + ".txt";
+            p = Path.of(dir, filename);
+        } while (Files.exists(p));
+
         try {
-            Files.write(p, keyStr.getBytes());
+            Files.write(p, key.toString(16).getBytes());
         } catch (IOException e) {
             LOG.error("Could not write collision to disk", e);
         }
