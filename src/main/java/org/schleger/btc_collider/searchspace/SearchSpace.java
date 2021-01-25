@@ -38,6 +38,15 @@ public class SearchSpace implements Comparable<SearchSpace>{
         return new SearchSpace(num, num);
     }
 
+    public static SearchSpace random(BigInteger interval) {
+        SecureRandom r = new SecureRandom();
+        byte[] bytes = new byte[32];
+        r.nextBytes(bytes);
+        BigInteger from = new BigInteger(1, bytes);
+        BigInteger to = from.add(interval);
+        return new SearchSpace(from, to);
+    }
+
     public BigInteger getFromInclusive(){
         return fromInclusive;
     }

@@ -12,7 +12,9 @@ import org.schleger.btc_collider.collider.ColliderResult;
 import org.schleger.btc_collider.collision.CollisionListener;
 import org.schleger.btc_collider.collision.FileCollisionListener;
 import org.schleger.btc_collider.searchspace.FileSearchSpaceProvider;
+import org.schleger.btc_collider.searchspace.RandomSearchSpaceProvider;
 import org.schleger.btc_collider.searchspace.SearchSpace;
+import org.schleger.btc_collider.searchspace.SearchSpaceProvider;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,10 +34,12 @@ public class Collider {
 
     private final int numThreads;
     private final int runtimeMinutes;
+    private final boolean searchRandom;
 
-    public Collider(int numThreads, int runtimeMinutes){
+    public Collider(int numThreads, int runtimeMinutes, boolean searchRandom){
         this.numThreads = numThreads;
         this.runtimeMinutes = runtimeMinutes;
+        this.searchRandom = searchRandom;
     }
 
     public void run() throws IOException{
@@ -50,7 +54,7 @@ public class Collider {
         LOG.info("Start collider on {} threads", numThreads);
         ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
 
-        FileSearchSpaceProvider fsp = new FileSearchSpaceProvider(SEARCH_SPACE_PATH);
+        SearchSpaceProvider p = searchRandom ? new RandomSearchSpaceProvider() : new FileSearchSpaceProvider(SEARCH_SPACE_PATH);
         ArrayList<Future<ColliderResult>> tasks = new ArrayList<>(numThreads);
 
         long startSec = System.currentTimeMillis() / 1000;
@@ -64,7 +68,7 @@ public class Collider {
             if (keepRunning){
                 while (tasks.size() < numThreads * 2 ){
                     //add new
-                    SearchSpace searchSpace = fsp.nextSearchSpace();
+                    SearchSpace searchSpace = p.nextSearchSpace();
                     ColliderCallable c = new ColliderCallable(addresses, searchSpace);
                     Future<ColliderResult> task = executorService.submit(c);
                     tasks.add(task);
@@ -102,7 +106,7 @@ public class Collider {
                         LOG.info("Found key: " + keyStr);
                         collisionListeners.forEach( c -> c.collisionEvent(key));
                     });
-                    fsp.done(result.getSearchSpace());
+                    p.done(result.getSearchSpace());
                 }
 
             }
@@ -130,6 +134,10 @@ public class Collider {
         threadCount.setRequired(true);
         options.addOption(threadCount);
 
+        Option random = new Option("r", "random", false, "search randomly");
+        random.setRequired(false);
+        options.addOption(random);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd = null;
@@ -145,8 +153,9 @@ public class Collider {
 
         int runtimeMinutes = Integer.parseInt(cmd.getOptionValue("t"));
         int numThreads = Integer.parseInt(cmd.getOptionValue("n"));
+        boolean searchRandom = cmd.hasOption("r");
 
-        Collider c = new Collider(numThreads, runtimeMinutes);
+        Collider c = new Collider(numThreads, runtimeMinutes, searchRandom);
         c.run();
     }
 
