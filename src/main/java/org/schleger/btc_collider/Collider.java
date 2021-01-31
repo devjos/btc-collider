@@ -64,7 +64,7 @@ public class Collider {
 
         while(keepRunning || !tasks.isEmpty()){
 
-            keepRunning = currentSec - startSec <= runtimeMinutes * 60;
+            keepRunning = keepRunning && currentSec - startSec <= runtimeMinutes * 60;
             if (keepRunning){
                 while (tasks.size() < numThreads * 2 ){
                     //add new
@@ -82,7 +82,8 @@ public class Collider {
                 Thread.sleep(20_000);
             } catch (InterruptedException e) {
                 //silently ignore
-                LOG.trace("Ignore", e);
+                LOG.info("Got interrupted, preparing to shutdown", e);
+                keepRunning = false;
             }
 
             Iterator<Future<ColliderResult>> iterator = tasks.iterator();

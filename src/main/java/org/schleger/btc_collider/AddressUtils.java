@@ -1,6 +1,5 @@
 package org.schleger.btc_collider;
 
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -9,23 +8,21 @@ import org.bitcoinj.core.Bech32;
 import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPublicKey;
 import org.bouncycastle.jce.ECNamedCurveTable;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 import org.bouncycastle.jce.spec.ECPublicKeySpec;
 import org.bouncycastle.math.ec.ECPoint;
 
-import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 
 public class AddressUtils {
 
     private static final Logger LOG = LogManager.getLogger();
-    private static final ECNamedCurveParameterSpec params = ECNamedCurveTable.getParameterSpec("secp256k1");
+    private static final ECNamedCurveParameterSpec SECP256K1_PARAMS = ECNamedCurveTable.getParameterSpec("secp256k1");
+    private static final ECPoint G = SECP256K1_PARAMS.getG();
     private static KeyFactory keyFactory;
 
     static {
@@ -92,8 +89,8 @@ public class AddressUtils {
 
     public static BCECPublicKey publicKey(BigInteger privateKey){
         try{
-            ECPoint q = params.getG().multiply(privateKey);
-            ECPublicKeySpec publicKeySpec = new ECPublicKeySpec(q, params);
+            ECPoint q = G.multiply(privateKey);
+            ECPublicKeySpec publicKeySpec = new ECPublicKeySpec(q, SECP256K1_PARAMS);
             return (BCECPublicKey) keyFactory.generatePublic(publicKeySpec);
         } catch (InvalidKeySpecException e) {
             LOG.error("Invalid key", e);
