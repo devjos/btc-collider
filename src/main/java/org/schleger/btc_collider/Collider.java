@@ -62,8 +62,7 @@ public class Collider {
 
         boolean keepRunning = true;
 
-        while(keepRunning || !tasks.isEmpty()){
-
+        do{
             keepRunning = keepRunning && currentSec - startSec <= runtimeMinutes * 60;
             if (keepRunning){
                 while (tasks.size() < numThreads * 2 ){
@@ -97,9 +96,9 @@ public class Collider {
                 try {
                     result = task.get();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    LOG.error(e);
                 } catch (ExecutionException e) {
-                    e.printStackTrace();
+                    LOG.error(e);
                 }
                 if (result != null){
                     result.getCollisions().forEach( key -> {
@@ -113,7 +112,7 @@ public class Collider {
             }
 
             currentSec = System.currentTimeMillis() / 1000;
-        }
+        }while(!tasks.isEmpty());
 
         LOG.info("Shutdown. Remaining tasks: {}", tasks.size());
         executorService.shutdown();
