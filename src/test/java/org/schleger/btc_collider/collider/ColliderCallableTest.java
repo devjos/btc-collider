@@ -4,6 +4,8 @@ import gnu.trove.set.hash.TCustomHashSet;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.schleger.btc_collider.AddressUtils;
 import org.schleger.btc_collider.addresses.FileAddressesProvider;
 
@@ -67,10 +69,16 @@ public class ColliderCallableTest {
 
     }
 
-    @Test
-    public void findWIF() throws Exception {
-        String wif = "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEt3BU5TJooQ";
-        FileAddressesProvider p = new FileAddressesProvider(Path.of("addresses", wif + ".txt.gz"));
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEt3BU5TJooQ",
+            "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB4gHj2LY81dM4N",
+            "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5mG3VbvRiMXFMAi2euC7",
+            "5HpHagT65TZzG1PH3CSu63k8DbpvD8sovht9C5oEoZSk2JTBpU4",
+            "5Km2kuu7vtFDPpxywn4u3NLpbr5jKpTB3jsuDU2KYEqeHZGfNdG",
+    })
+    public void findWIF(String wif) throws Exception {
+        FileAddressesProvider p = new FileAddressesProvider(Path.of("addresses", "wif", wif + ".txt.gz"));
         TCustomHashSet<byte[]> addresses = p.provideAddresses();
 
         BigInteger privateKey = AddressUtils.wifToPrivateKey(wif);
