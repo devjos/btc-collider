@@ -4,6 +4,7 @@ import gnu.trove.set.hash.TCustomHashSet;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.schleger.btc_collider.AddressUtils;
 import org.schleger.btc_collider.addresses.FileAddressesProvider;
 
 import java.math.BigInteger;
@@ -64,5 +65,26 @@ public class ColliderCallableTest {
 
         Assertions.assertEquals("efae164cb9e3c", collisions.get(0).toString(16));
 
+    }
+
+    @Test
+    public void findWIF() throws Exception {
+        String wif = "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEt3BU5TJooQ";
+        FileAddressesProvider p = new FileAddressesProvider(Path.of("addresses", wif + ".txt.gz"));
+        TCustomHashSet<byte[]> addresses = p.provideAddresses();
+
+        BigInteger privateKey = AddressUtils.wifToPrivateKey(wif);
+
+        BigInteger start = privateKey.subtract(BigInteger.TEN);
+        BigInteger end = privateKey.add(BigInteger.TEN);
+
+        ColliderCallable colliderCallable = new ColliderCallable(addresses, start, end);
+        ColliderResult result = colliderCallable.call();
+
+        List<BigInteger> collisions = result.getCollisions();
+        Assertions.assertEquals(2, collisions.size());
+
+        Assertions.assertEquals(privateKey, collisions.get(0));
+        Assertions.assertEquals(privateKey, collisions.get(1));
     }
 }
