@@ -29,7 +29,7 @@ import java.util.concurrent.Future;
 public class Collider {
 
     private static final Logger LOG = LogManager.getLogger();
-    private static final Path ADDRESSES_PATH = Path.of("addresses", "Bitcoin_addresses_January_18_2021.txt.gz");
+    private static final Path ADDRESSES_PATH = Path.of("addresses", "latest.txt.gz");
     private static final Path SEARCH_SPACE_PATH = Path.of("searchspace", "space.txt");
 
     private final int numThreads;
