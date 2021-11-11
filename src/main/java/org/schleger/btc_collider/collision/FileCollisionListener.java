@@ -11,6 +11,7 @@ import java.nio.file.Path;
 public class FileCollisionListener implements CollisionListener {
 
     private static final Logger LOG = LogManager.getLogger();
+    private final Object lock = new Object();
     private final String dir;
     private int count = 0;
 
@@ -20,17 +21,19 @@ public class FileCollisionListener implements CollisionListener {
 
     @Override
     public void collisionEvent(BigInteger key) {
-        Path p;
-        do{
-            count++;
-            String filename = count + ".txt";
-            p = Path.of(dir, filename);
-        } while (Files.exists(p));
+        synchronized (lock){
+            Path p;
+            do{
+                count++;
+                String filename = count + ".txt";
+                p = Path.of(dir, filename);
+            } while (Files.exists(p));
 
-        try {
-            Files.write(p, key.toString(16).getBytes());
-        } catch (IOException e) {
-            LOG.error("Could not write collision to disk", e);
+            try {
+                Files.write(p, key.toString(16).getBytes());
+            } catch (IOException e) {
+                LOG.error("Could not write collision to disk", e);
+            }
         }
     }
 }

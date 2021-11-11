@@ -10,6 +10,7 @@ import org.schleger.btc_collider.addresses.FileAddressesProvider;
 import org.schleger.btc_collider.collider.ColliderCallable;
 import org.schleger.btc_collider.collider.ColliderResult;
 import org.schleger.btc_collider.collision.CollisionListener;
+import org.schleger.btc_collider.collision.CountingCollisionListener;
 import org.schleger.btc_collider.collision.FileCollisionListener;
 import org.schleger.btc_collider.searchspace.FileSearchSpaceProvider;
 import org.schleger.btc_collider.searchspace.RandomSearchSpaceProvider;
@@ -48,8 +49,8 @@ public class Collider {
         TCustomHashSet<byte[]> addresses = f.provideAddresses();
         LOG.info("Read DONE");
 
-        List<CollisionListener> collisionListeners = new ArrayList<>();
-        collisionListeners.add(new FileCollisionListener("collisions"));
+        CountingCollisionListener countingCollisionListener = new CountingCollisionListener();
+        List<CollisionListener> collisionListeners = List.of(countingCollisionListener, new FileCollisionListener("collisions"));
 
         LOG.info("Start collider on {} threads", numThreads);
         ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
@@ -114,7 +115,7 @@ public class Collider {
             currentSec = System.currentTimeMillis() / 1000;
         }while(!tasks.isEmpty());
 
-        LOG.info("Shutdown. Remaining tasks: {}", tasks.size());
+        LOG.info("Shutdown. Found {} collisions.", countingCollisionListener.getCollisionCount());
         executorService.shutdown();
 
         System.exit(0);
